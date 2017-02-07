@@ -9,6 +9,39 @@ import { FileList } from "./xFileList"
 // http://exploringjs.com/es6/ch_modules.html
 // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_operator
 
+class xTag {
+    constructor(ScenarioName, Step, others) {
+        if (others) {
+            Object.assign(this, others)
+        }
+        this.scenarioStack = []
+        this.scenarioStack.push({ ScenarioName: ScenarioName, Step: Step })
+
+    }
+    get ScenarioName() { return this.getLastScenario().ScenarioName }
+    set ScenarioName(name) { this.getLastScenario().ScenarioName = name }
+
+    get Step() { return this.getLastScenario().Step }
+    set Step(step) { this.getLastScenario().Step = step }
+
+    get params() { return this.getLastScenario().params }
+
+    getLastScenario() {
+        if (this.scenarioStack.length > 0) {
+            var a = this.scenarioStack[this.scenarioStack.length - 1]
+            return a
+        } else {
+            return ""
+        }
+    }
+    pushScenario(NewScenarioName, NewStep, params) {
+        this.scenarioStack.push({ ScenarioName: NewScenarioName, Step: NewStep, params })
+    }
+    popScenario() {
+        return this.scenarioStack.pop()
+    }
+}
+
 function MakeSHA(filepath, callback) {
     // http://stackoverflow.com/questions/18658612/obtaining-the-hash-of-a-file-using-the-stream-capabilities-of-crypto-module-ie
     var fd = fs.createReadStream(filepath)
@@ -82,105 +115,302 @@ function oswalk(folderpath) {
     return entry
 }
 
-function ScenarioNext(ScenarioName, tag) {
+function rmdirsSync(folderpath) {
+    var filelist = oswalk(folderpath)
+    filelist.reverse().forEach(x => {
+        x.dirs.forEach(y => {
+            fs.rmdirSync(path.join(x.root, y))
+        })
+    })
+    fs.rmdirSync(folderpath)
+}
+
+var handlers = {
+    "CheckHash": ScenarioCheckHash,
+    "LeftCopy": ScenarioLeftCopy,
+    "MakeSHA": ScenarioMakeHash,
+    "LeftMove": ScenarioLeftMove,
+}
+
+function CallScenario(NewScenarioName, NewStep, xtag, params) {
+    console.debug("CallScenario " + xtag.ScenarioName + " step " + xtag.Step)
+    xtag.pushScenario(NewScenarioName, NewStep, params)
+    ScenarioNext(xtag)
+}
+
+function ScenarioNext(xtag) {
     setTimeout(function () {
-        console.log("ScenarioNext " + ScenarioName + " step " + tag.step)
-        ScenarioHandler(ScenarioName, tag)
+        console.debug("ScenarioNext " + xtag.ScenarioName + " step " + xtag.Step)
+        // ScenarioHandler(xtag)
+        if (handlers[xtag.ScenarioName]) {
+            handlers[xtag.ScenarioName](xtag)
+        } else {
+            console.log("ScenarioNext cannot find " + xtag.ScenarioName + " step " + xtag.Step)
+        }
+
     }, 1);
 }
 
-class xTag {
-    constructor(ScenarioName, Step, others) {
-        this.scenarioStack = []
-        this.scenarioStack.push({ ScenarioName: ScenarioName, Step: Step })
-    }
-    getLastScenario() {
-        if (this.scenarioStack.length > 0) {
-            var a = this.scenarioStack[this.scenarioStack.length - 1]
-            return a
-        } else {
-            return ""
-        }
+function ScenarioMakeHash(xtag) {
+    console.log("ScenarioMakeHash " + xtag.ScenarioName + " step " + xtag.Step)
+    switch (xtag.Step) {
+        case "1":
+            delete xtag.result
+            xtag.result = []
+            xtag._tasklist = []
+            xtag.params.forEach(x => {
+                xtag._tasklist.push({ path: x, hash: "" })
+            })
+            xtag.Step = "MakeSHA"
+            ScenarioNext(xtag)
+            break
+        case "MakeSHA":
+            if (xtag._tasklist.length > 0) {
+                var task = xtag._tasklist.shift()
+                MakeSHA_Promise(task.path).then(x => {
+                    task.hash = x.hash
+                    xtag.result.push(task)
+                    xtag.Step = "MakeSHA"
+                    ScenarioNext(xtag)
+                })
+            } else {
+                xtag.Step = "final"
+                ScenarioNext(xtag)
+            }
+            break
+        case "final":
+            console.debug("done; return origin")
+            xtag.popScenario()
+            ScenarioNext(xtag)
+            break
     }
 }
 
-function ScenarioHandler(ScenarioName, tag) {
-    console.log("ScenarioHandler " + ScenarioName + " step " + tag.step)
-    switch (ScenarioName) {
-        case "LeftCopy":
-            switch (tag.step) {
-                case "1":
-                    // make file list
-                    var filelist = []
-                    var pathFrom = path.join(tag.from, tag.select)
-                    if (fs.lstatSync(pathFrom).isDirectory()) {
-                        filelist = oswalk(pathFrom)
-                        tag.step = "filelistGot"
-                        tag.filelist = filelist
-                        ScenarioNext("LeftCopy", tag)
-                    } else {
-                        var root = path.dirname(pathFrom)
-                        var name = path.basename(pathFrom)
-                        filelist.push({ root: root, dirs: [], files: [name] })
-                        tag.step = "filelistGot"
-                        tag.filelist = filelist
-                        ScenarioNext("LeftCopy", tag)
-                    }
-                    break
-                case "filelistGot":
-                    tag.cmdlist = []
-                    tag.filelist.forEach(x => {
-                        x.files.forEach(y => {
-                            var relpath = x.root.substring(tag.from.length)
-                            // console.log(["copy", x.root, y, "to", tag.to, relpath])
-                            tag.cmdlist.push({ "cmd": "copy", "src": path.join(x.root, y), "dest": path.join(tag.to, relpath, y) })
-                        })
-                    })
-                    delete tag.filelist
-                    tag.step = "makeSHA"
-                    ScenarioNext("LeftCopy", tag)
-                    break
-                case "makeSHA":
-                    if (tag.cmdlist.length > 0) {
-                        var cmd = tag.cmdlist.pop()
-                        MakeSHA_Promise(cmd.src).then(x => {
-                            cmd.hash = x.hash
-                            if (tag.filehash) {
-                                tag.filehash.push(cmd)
-                            } else {
-                                tag.filehash = []
-                                tag.filehash.push(cmd)
-                            }
-                            tag.step = "makeSHA"
-                            ScenarioNext("LeftCopy", tag)
-                        })
-                    } else {
-                        console.log("makeSHA end")
-                        tag.step = "executeCmd"
-                        ScenarioNext("LeftCopy", tag)
-                    }
-                    break
-                case "executeCmd":
-                    tag.filehash.forEach(x => {
-                        // console.log(x)
-                        try {
-                            console.log(x)
-                            fs.copySync(x.src, x.dest)
-                        } catch (err) {
-                            console.log(err)
-                            console.log(x)
-                            throw err
-                        }
+function ScenarioCheckHash(xtag) {
+    console.log("ScenarioCheckHash " + xtag.ScenarioName + " step " + xtag.Step)
+    switch (xtag.Step) {
+        case "1":
+            var params = []
 
-                    })
-                    console.log("executeCmd end")
-                    tag.step = "checkHash"
-                    ScenarioNext("LeftCopy", tag)
-                    break
-                case "checkHash":
-                    console.log("checkHash start")
-                    break
+            xtag.filehash.forEach(x => {
+                params.push(x.dest)
+            })
+
+            xtag.Step = "gotHash"
+            CallScenario("MakeSHA", "1", xtag, params)
+            break
+        case "gotHash":
+            console.log("gotHash")
+
+            var d = {}
+            xtag.filehash.forEach(x => {
+                d[x.dest] = x
+            })
+
+            xtag.result.forEach(x => {
+                d[x.path].desthash = x.hash
+                d[x.path].hashcomp = (d[x.path].hash == d[x.path].desthash)
+            })
+
+            var r = []
+            xtag.filehash.forEach(x => {
+                r.push(d[x.dest])
+            })
+            xtag.result = r
+
+            xtag.Step = "final"
+            ScenarioNext(xtag)
+            break
+        case "final":
+            console.log("done; return origin")
+            xtag.popScenario()
+            ScenarioNext(xtag)
+            break
+    }
+}
+
+function ScenarioLeftCopy(xtag) {
+    console.log("ScenarioLeftCopy step " + xtag.Step)
+    switch (xtag.Step) {
+        case "1":
+            // make file list
+            var filelist = []
+            var pathFrom = path.join(xtag.from, xtag.select)
+            if (fs.lstatSync(pathFrom).isDirectory()) {
+                filelist = oswalk(pathFrom)
+                xtag.Step = "filelistGot"
+                xtag.filelist = filelist
+                ScenarioNext(xtag)
+            } else {
+                var root = path.dirname(pathFrom)
+                var name = path.basename(pathFrom)
+                filelist.push({ root: root, dirs: [], files: [name] })
+                xtag.Step = "filelistGot"
+                xtag.filelist = filelist
+                ScenarioNext(xtag)
             }
+            break
+        case "filelistGot":
+            xtag.cmdlist = []
+            xtag.filelist.forEach(x => {
+                x.files.forEach(y => {
+                    var relpath = x.root.substring(xtag.from.length)
+                    // console.log(["copy", x.root, y, "to", tag.to, relpath])
+                    xtag.cmdlist.push({ "cmd": "copy", "src": path.join(x.root, y), "dest": path.join(xtag.to, relpath, y) })
+                })
+            })
+            delete xtag.filelist
+            xtag.Step = "makeSHA"
+            ScenarioNext(xtag)
+            break
+        case "makeSHA":
+            if (xtag.cmdlist.length > 0) {
+                var cmd = xtag.cmdlist.shift()
+                MakeSHA_Promise(cmd.src).then(x => {
+                    cmd.hash = x.hash
+                    if (xtag.filehash) {
+                        xtag.filehash.push(cmd)
+                    } else {
+                        xtag.filehash = []
+                        xtag.filehash.push(cmd)
+                    }
+                    xtag.Step = "makeSHA"
+                    ScenarioNext(xtag)
+                })
+            } else {
+                console.log("makeSHA end")
+                xtag.Step = "executeCopy"
+                ScenarioNext(xtag)
+            }
+            break
+        case "executeCopy":
+            xtag.filehash.forEach(x => {
+                try {
+                    console.debug("copy " + x.src + " " + x.dest)
+                    fs.copySync(x.src, x.dest)
+                } catch (err) {
+                    console.log(err)
+                    console.log(x)
+                    throw err
+                }
+
+            })
+            console.log("executeCopy end")
+            xtag.Step = "checkHash"
+            ScenarioNext(xtag)
+            break
+        case "checkHash":
+            console.log("checkHash start")
+            xtag.Step = "HaskResult"
+            CallScenario("CheckHash", "1", xtag)
+            break
+        case "HaskResult":
+            console.log("HaskResult")
+            xtag.srcObject.eventFire("LeftCopyResult", xtag)
+            break
+    }
+}
+
+function ScenarioLeftMove(xtag) {
+    console.log("ScenarioLeftCopy step " + xtag.Step)
+    switch (xtag.Step) {
+        case "1":
+            // make file list
+            var filelist = []
+            var pathFrom = path.join(xtag.from, xtag.select)
+            if (fs.lstatSync(pathFrom).isDirectory()) {
+                filelist = oswalk(pathFrom)
+                xtag.Step = "filelistGot"
+                xtag.filelist = filelist
+                ScenarioNext(xtag)
+            } else {
+                var root = path.dirname(pathFrom)
+                var name = path.basename(pathFrom)
+                filelist.push({ root: root, dirs: [], files: [name] })
+                xtag.Step = "filelistGot"
+                xtag.filelist = filelist
+                ScenarioNext(xtag)
+            }
+            break
+        case "filelistGot":
+            xtag.filehash = []
+            xtag.filelist.forEach(x => {
+                x.files.forEach(y => {
+                    var relpath = x.root.substring(xtag.from.length)
+                    // console.log(["copy", x.root, y, "to", tag.to, relpath])
+                    xtag.filehash.push({ "cmd": "move", "src": path.join(x.root, y), "dest": path.join(xtag.to, relpath, y) })
+                })
+            })
+            delete xtag.filelist
+
+            var params = []
+            xtag.filehash.forEach(x => {
+                params.push(x.src)
+            })
+            xtag.Step = "gotSHA"
+            CallScenario("MakeSHA", "1", xtag, params)
+            break
+        case "gotSHA":
+            var d = {}
+            xtag.filehash.forEach(x => {
+                d[x.src] = x
+            })
+
+            xtag.result.forEach(x => {
+                d[x.path].hash = x.hash
+            })
+            xtag.Step = "executeMove"
+            ScenarioNext(xtag)
+            break
+        case "executeMove":
+            xtag.filehash.forEach(x => {
+                try {
+                    console.debug("copy " + x.src + " " + x.dest)
+                    fs.copySync(x.src, x.dest)
+                } catch (err) {
+                    console.log(err)
+                    console.log(x)
+                    throw err
+                }
+
+            })
+            console.log("executeMove end")
+            xtag.Step = "checkHash"
+            ScenarioNext(xtag)
+            break
+        case "checkHash":
+            console.log("checkHash start")
+            xtag.Step = "HashResult"
+            CallScenario("CheckHash", "1", xtag)
+            break
+        case "HashResult":
+            console.log("HashResult")
+            var copyresult = true
+            xtag.result.forEach(x => {
+                copyresult = copyresult && x.hashcomp
+            })
+            if (copyresult) {
+                xtag.filehash.forEach(x => {
+                    try {
+                        console.debug("move " + x.src + " " + x.dest)
+                        fs.unlinkSync(x.src)
+                    } catch (err) {
+                        console.log(err)
+                        console.log(x)
+                        throw err
+                    }
+                })
+                var p = path.join(xtag.from, xtag.select)
+                try {
+                    rmdirsSync(p)
+                    xtag.result = "move ok"
+                } catch (error) {
+                    xtag.result = error
+                }
+            } else {
+                xtag.result = "move ng"
+            }
+            xtag.srcObject.eventFire("LeftMoveResult", xtag)
             break
     }
 }
@@ -212,6 +442,8 @@ export class MainFrame extends React.Component {
             rightFolder: props.rightFolder,
             // leftTree: leftTree,
             // rightTree: rightTree
+            leftStatus: "",
+            rightStatus: "",
         }
         this.leftSelected = null
         this.rightSelected = null
@@ -229,6 +461,10 @@ export class MainFrame extends React.Component {
         // console.log("ename:" + eventName + " , srcObject:" + tag.srcObject)
         switch (eventName) {
             case "Click":
+                if (this.state.leftStatus.length > 0) {
+                    this.setState({ "leftStatus": "" })
+                }
+
                 switch (tag.srcObject.constructor.name) {
                     case "Button":
                         switch (tag.srcObject.props.id) {
@@ -242,24 +478,22 @@ export class MainFrame extends React.Component {
                                 break
                             case "leftCopy":
                                 if (this.leftSelected) {
-                                    var p = path.join(this.leftSelected.root, this.leftSelected.text)
-                                    // console.log(tag.srcObject.props.id + " from " + p + " to " + this.state.rightFolder)
-                                    ScenarioHandler("LeftCopy", {
-                                        "step": "1",
+                                    // var p = path.join(this.leftSelected.root, this.leftSelected.text)
+                                    ScenarioNext(new xTag("LeftCopy", "1", {
                                         "starter": this,
                                         "from": this.state.leftFolder,
                                         "to": this.state.rightFolder,
-                                        select: this.leftSelected.text
-                                    })
+                                        "select": this.leftSelected.text,
+                                        srcObject: this
+                                    }))
                                 } else {
-                                    // console.log(tag.srcObject.props.id + " from " + this.state.leftFolder + " to " + this.state.rightFolder)
-                                    ScenarioHandler("LeftCopy", {
-                                        "step": "1",
+                                    ScenarioNext(new xTag("LeftCopy", "1", {
                                         "starter": this,
                                         "from": this.state.leftFolder,
                                         "to": this.state.rightFolder,
-                                        select: ""
-                                    })
+                                        "select": "",
+                                        srcObject: this
+                                    }))
                                 }
                                 break
                             case "rightCopy":
@@ -267,10 +501,22 @@ export class MainFrame extends React.Component {
                                 break
                             case "leftMove":
                                 if (this.leftSelected) {
-                                    var p = path.join(this.leftSelected.root, this.leftSelected.text)
-                                    console.log(tag.srcObject.props.id + " from " + p + " to " + this.state.rightFolder)
+                                    // var p = path.join(this.leftSelected.root, this.leftSelected.text)
+                                    ScenarioNext(new xTag("LeftMove", "1", {
+                                        "starter": this,
+                                        "from": this.state.leftFolder,
+                                        "to": this.state.rightFolder,
+                                        "select": this.leftSelected.text,
+                                        srcObject: this
+                                    }))
                                 } else {
-                                    console.log(tag.srcObject.props.id + " from " + this.state.leftFolder + " to " + this.state.rightFolder)
+                                    ScenarioNext(new xTag("LeftMove", "1", {
+                                        "starter": this,
+                                        "from": this.state.leftFolder,
+                                        "to": this.state.rightFolder,
+                                        "select": "",
+                                        srcObject: this
+                                    }))
                                 }
                                 break
                             case "rightMove":
@@ -325,7 +571,20 @@ export class MainFrame extends React.Component {
                         break
                 }
                 break
-
+            case "LeftCopyResult":
+                var copyresult = true
+                tag.result.forEach(x => {
+                    copyresult = copyresult && x.hashcomp
+                })
+                this.setState({ "leftStatus": "LeftCopyResult:" + copyresult })
+                break
+            case "LeftMoveResult":
+                if (fs.existsSync(path.join(this.state.leftFolder, tag.select)) == false) {
+                    var p = path.dirname(path.join(this.state.leftFolder, tag.select))
+                    this.setState({ "leftFolder": p })
+                }
+                this.setState({ "leftStatus": "LeftMoveResult:" + tag.result })
+                break
             default:
 
         }
@@ -349,6 +608,10 @@ export class MainFrame extends React.Component {
                             <Button text="copy" id="rightCopy" eventFire={this.eventFire} />
                             <Button text="move" id="rightMove" eventFire={this.eventFire} />
                         </td>
+                    </tr>
+                    <tr>
+                        <td><TextView text={this.state.leftStatus} /></td>
+                        <td><TextView text={this.state.rightStatus} /></td>
                     </tr>
                 </tbody>
             </table>

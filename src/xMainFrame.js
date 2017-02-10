@@ -435,7 +435,11 @@ export class MainFrame extends React.Component {
                                 break
                             case "rightUp":
                                 var p = path.dirname(this.state.rightFolder)
-                                this.setState({ "rightFolder": p })
+                                if ((this.state.rightFolder == "") || (p.length == 3 && p.endsWith(":\\") && p == this.state.rightFolder)) {
+                                    this.setState({ "rightFolder": "" })
+                                } else {
+                                    this.setState({ "rightFolder": p })
+                                }
                                 break
                             case "leftCopy":
                                 if (this.leftSelected) {
@@ -530,6 +534,9 @@ export class MainFrame extends React.Component {
                         } else if (tag.srcObject.props.id === "rightFileList") {
                             if (tag.itemSelected.props.isDir) {
                                 var p = path.join(this.state.rightFolder, tag.itemSelected.props.text)
+                                if (this.state.rightFolder.length == 0) {
+                                    p = path.join(tag.itemSelected.props.text, ".")
+                                }
                                 this.setState({ "rightFolder": p })
                             } else {
 
@@ -572,8 +579,8 @@ export class MainFrame extends React.Component {
                             <TextView text={this.state.rightFolder} />
                             <FileList id="rightFileList" itemSelected={this.rightSelected} root={this.state.rightFolder} eventFire={this.eventFire} />
                             <Button text="up" id="rightUp" eventFire={this.eventFire} />
-                            <Button text="copy" id="rightCopy" eventFire={this.eventFire} />
-                            <Button text="move" id="rightMove" eventFire={this.eventFire} />
+                            {/*<Button text="copy" id="rightCopy" eventFire={this.eventFire} />
+                            <Button text="move" id="rightMove" eventFire={this.eventFire} />*/}
                         </td>
                     </tr>
                     <tr>

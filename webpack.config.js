@@ -27,6 +27,7 @@ module.exports = {
                 include: [SRC_PATH],
                 query: {
                     presets: ['es2015', 'react'],
+                    plugins: ["syntax-async-functions","transform-regenerator","transform-runtime"]
                 }
             },
             { test: /\.css$/, loader: 'style-loader!css-loader' },

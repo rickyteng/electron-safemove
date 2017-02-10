@@ -4,6 +4,26 @@ const drivelist = require('drivelist');
 
 import { FileItem } from "./xFileItem"
 
+async function getdrivelist() {
+    var a = new Promise(resolve => {
+        drivelist.list((error, drives) => {
+            if (error) {
+                throw error;
+            }
+            var tree = []
+            drives.forEach((drive) => {
+                drive.mountpoints.forEach(mp => {
+                    var isDir = true
+                    var file = mp.path
+                    tree.push(file)
+                })
+            });
+            resolve(tree)
+        })
+    })
+    return a
+}
+
 export class FileList extends React.Component {
     constructor(props) {
         super(props);
@@ -75,6 +95,13 @@ export class FileList extends React.Component {
                     });
                     this.setState({ drives: tree })
                 }) //.bind(this);
+
+                // var tree = getdrivelist()
+                // this.setState({ drives: tree })
+
+                // getdrivelist.then(tree=>{
+                //     this.setState({ drives: tree })
+                // })
                 break
         }
 
@@ -91,7 +118,7 @@ export class FileList extends React.Component {
         var tree = []
         if (this.props.root == '') {
             if (this.state.drives) {
-                this.state.drives.forEach((drive) => {
+                this.state.drives.forEach(drive => {
                     var isDir = true
                     var file = drive
                     if (s === file) {
@@ -99,13 +126,14 @@ export class FileList extends React.Component {
                     } else {
                         tree.push(<FileItem side={this.props.side} root={this.props.root} text={file} key={file} isDir={isDir} eventFire={this.handleClick} />)
                     }
-                });
+                })
 
             } else {
                 this.handleClick("getDrive")
             }
 
         } else {
+            this.state.drives=null
             var files = fs.readdirSync(this.props.root)
             files.forEach(file => {
                 try {

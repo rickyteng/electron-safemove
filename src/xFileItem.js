@@ -27,9 +27,9 @@ export class FileItem extends React.Component {
         // console.log("render start " + this.props.id)
         if (this.props.isDir) {
             if (this.props.selected) {
-                return (<li className="selected" onClick={this.handleClick} onDoubleClick={this.handleDoubleClick}><b>{this.props.text}</b></li>)
+                return (<li className="selected folder" onClick={this.handleClick} onDoubleClick={this.handleDoubleClick}><b>{this.props.text}</b></li>)
             } else {
-                return (<li onClick={this.handleClick} onDoubleClick={this.handleDoubleClick}><b>{this.props.text}</b></li>)
+                return (<li className="folder" onClick={this.handleClick} onDoubleClick={this.handleDoubleClick}>{this.props.text}</li>)
             }
 
         } else {

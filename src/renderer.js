@@ -6,8 +6,8 @@ const fs = require('fs-extra')
 
 
 var cwd = remote.getGlobal('sharedObj').cwd
-var leftFolder = "c:/test/src"
-var rightFolder = "c:/test/dest"
+var leftFolder = cwd //"c:/test/src"
+var rightFolder = cwd //"c:/test/dest"
 
 import {MainFrame} from "./xMainFrame"
 

@@ -30,7 +30,8 @@ module.exports = {
                 }
             },
             { test: /\.css$/, loader: 'style-loader!css-loader' },
-            { test: /\.less$/, loader: 'style-loader!css-loader!less-loader'}
+            { test: /\.less$/, loader: 'style-loader!css-loader!less-loader' },
+            { test: /\.json$/, loader: 'json-loader' }
         ]
     },
     plugins: [
@@ -42,7 +43,11 @@ module.exports = {
             { from: path.resolve(SRC_PATH, 'index.html'), to: 'index.html' },
             { from: path.resolve(SRC_PATH, 'package.json'), to: 'package.json' },
             { from: path.resolve(node_modules_path, 'react/dist/react.js'), to: 'lib/react.js' },
-            { from: path.resolve(node_modules_path, 'react-dom/dist/react-dom.js'), to: 'lib/react-dom.js' }
-        ])
+            { from: path.resolve(node_modules_path, 'react-dom/dist/react-dom.js'), to: 'lib/react-dom.js' },
+            { from: path.resolve(node_modules_path, 'drivelist/scripts'), to: 'scripts' }
+        ]),
+        new webpack.DefinePlugin({
+            $dirname: '__dirname',
+        }),
     ]
 };

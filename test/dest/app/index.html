@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>EAP Helper</title>
+    
+    <script>if (typeof module === 'object') {window.module = module; module = undefined;}</script>
+    <script src='lib/jquery-3.1.1.min.js'></script>
+    <script>if (window.module) module = window.module;</script>
+
+    <script src='lib/react.min.js'></script>
+    <script src='lib/react-dom.min.js'></script>
+  </head>
+  <body>
+    <table style="width:100%">
+      <tr>
+      <td style="width:50%">
+      <div desc="left">
+        <div desc="head" id="left_head"></div>
+        <div desc="tree" id="left_tree"></div>
+        <div desc="foot" id="left_foot"></div>
+      </div>
+      </td>
+      <td>
+      <div desc="right">
+        <div desc="head" id="right_head"></div>
+        <div desc="tree" id="right_tree"></div>
+        <div desc="foot"></div>
+      </div>
+      </td>
+      </tr>
+    </table>
+  </body>
+
+  <script>
+    // You can also require other files to run in this process
+    require('./renderer.js')
+  </script>
+</html>

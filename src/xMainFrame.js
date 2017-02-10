@@ -1,46 +1,15 @@
 const fs = require('fs-extra')
 const path = require('path')
 const crypto = require("crypto")
+const drivelist = require('drivelist') // import drivelist from 'drivelist'
 
 import { TextView } from "./xTextView"
 import { Button } from "./xButton"
 import { FileList } from "./xFileList"
+import { xTag, CallScenario, ScenarioNext, handlers } from "./xScenarioManager"
 
 // http://exploringjs.com/es6/ch_modules.html
 // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_operator
-
-class xTag {
-    constructor(ScenarioName, Step, others) {
-        if (others) {
-            Object.assign(this, others)
-        }
-        this.scenarioStack = []
-        this.scenarioStack.push({ ScenarioName: ScenarioName, Step: Step })
-
-    }
-    get ScenarioName() { return this.getLastScenario().ScenarioName }
-    set ScenarioName(name) { this.getLastScenario().ScenarioName = name }
-
-    get Step() { return this.getLastScenario().Step }
-    set Step(step) { this.getLastScenario().Step = step }
-
-    get params() { return this.getLastScenario().params }
-
-    getLastScenario() {
-        if (this.scenarioStack.length > 0) {
-            var a = this.scenarioStack[this.scenarioStack.length - 1]
-            return a
-        } else {
-            return ""
-        }
-    }
-    pushScenario(NewScenarioName, NewStep, params) {
-        this.scenarioStack.push({ ScenarioName: NewScenarioName, Step: NewStep, params })
-    }
-    popScenario() {
-        return this.scenarioStack.pop()
-    }
-}
 
 function MakeSHA(filepath, callback) {
     // http://stackoverflow.com/questions/18658612/obtaining-the-hash-of-a-file-using-the-stream-capabilities-of-crypto-module-ie
@@ -125,31 +94,19 @@ function rmdirsSync(folderpath) {
     fs.rmdirSync(folderpath)
 }
 
-var handlers = {
+// var handlers = {
+//     "CheckHash": ScenarioCheckHash,
+//     "LeftCopy": ScenarioLeftCopy,
+//     "MakeSHA": ScenarioMakeHash,
+//     "LeftMove": ScenarioLeftMove,
+// }
+
+Object.assign(handlers, {
     "CheckHash": ScenarioCheckHash,
     "LeftCopy": ScenarioLeftCopy,
     "MakeSHA": ScenarioMakeHash,
     "LeftMove": ScenarioLeftMove,
-}
-
-function CallScenario(NewScenarioName, NewStep, xtag, params) {
-    console.debug("CallScenario " + xtag.ScenarioName + " step " + xtag.Step)
-    xtag.pushScenario(NewScenarioName, NewStep, params)
-    ScenarioNext(xtag)
-}
-
-function ScenarioNext(xtag) {
-    setTimeout(function () {
-        console.debug("ScenarioNext " + xtag.ScenarioName + " step " + xtag.Step)
-        // ScenarioHandler(xtag)
-        if (handlers[xtag.ScenarioName]) {
-            handlers[xtag.ScenarioName](xtag)
-        } else {
-            console.log("ScenarioNext cannot find " + xtag.ScenarioName + " step " + xtag.Step)
-        }
-
-    }, 1);
-}
+})
 
 function ScenarioMakeHash(xtag) {
     console.log("ScenarioMakeHash " + xtag.ScenarioName + " step " + xtag.Step)
@@ -470,7 +427,11 @@ export class MainFrame extends React.Component {
                         switch (tag.srcObject.props.id) {
                             case "leftUp":
                                 var p = path.dirname(this.state.leftFolder)
-                                this.setState({ "leftFolder": p })
+                                if ((this.state.leftFolder == "") || (p.length == 3 && p.endsWith(":\\") && p == this.state.leftFolder)) {
+                                    this.setState({ "leftFolder": "" })
+                                } else {
+                                    this.setState({ "leftFolder": p })
+                                }
                                 break
                             case "rightUp":
                                 var p = path.dirname(this.state.rightFolder)
@@ -555,8 +516,14 @@ export class MainFrame extends React.Component {
                     case "FileList":
                         if (tag.srcObject.props.id === "leftFileList") {
                             if (tag.itemSelected.props.isDir) {
-                                var p = path.join(this.state.leftFolder, tag.itemSelected.props.text)
-                                this.setState({ "leftFolder": p })
+                                if (this.state.leftFolder.length == 0) {
+                                    var p = path.join(tag.itemSelected.props.text, ".")
+                                    this.setState({ "leftFolder": p })
+                                } else {
+                                    var p = path.join(this.state.leftFolder, tag.itemSelected.props.text)
+                                    this.setState({ "leftFolder": p })
+                                }
+
                             } else {
 
                             }

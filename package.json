@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "webpack",
-    "start":"electron app"
+    "start": "electron app"
   },
   "keywords": [
     "test"
@@ -21,6 +21,7 @@
     "copy-webpack-plugin": "^4.0.1",
     "css-loader": "^0.26.1",
     "electron": "^1.4.14",
+    "json-loader": "^0.5.4",
     "less-loader": "^2.2.3",
     "react": "^15.4.2",
     "react-dom": "^15.4.2",

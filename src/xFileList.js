@@ -158,7 +158,7 @@ export class FileList extends React.Component {
 
         if (tree.length > 0) {
             return (
-                <div style={{ "maxHeight": "460px", overflow: "auto" }}>
+                <div className="filelist">
                     <ul>
                         {tree}
                     </ul>

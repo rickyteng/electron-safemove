@@ -608,10 +608,16 @@ export class MainFrame extends React.Component {
                             <Button text="move" id="rightMove" eventFire={this.eventFire} />*/}
                         </td>
                     </tr>
-                    <tr style={{ width: "50%" }}>
-                        <td><LogWindow lines={this.state.leftStatus} ref="leftLogWindow" /></td>
-                        <td><LogWindow lines={this.state.rightStatus} /></td>
+                    <tr>
+                        <td colSpan="2"><LogWindow lines={this.state.leftStatus} ref="leftLogWindow" /></td>
+                        <td></td>
                     </tr>
+                    {/*
+                    <tr>
+                        <td rowSpan="2"><LogWindow lines={this.state.rightStatus} /></td>
+                        <td></td>
+                    </tr>
+                    */}
                 </tbody>
             </table>
         );

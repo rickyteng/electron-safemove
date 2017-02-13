@@ -19,7 +19,7 @@ export class LogLine extends React.Component {
 
     render() {
         return (
-            <div>{this.props.timestamp} [{this.props.level}] {this.props.text}</div>
+            <div className="logline">{this.props.timestamp} [{this.props.level}] {this.props.text}</div>
         );
     }
 }

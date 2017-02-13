@@ -28,7 +28,7 @@ export class LogWindow extends React.Component {
 
     render() {
         return (
-            <div style={{ "maxHeight": "260px", overflow: "auto" }}>{this.state.lines}</div>
+            <div className="logwindow">{this.state.lines}</div>
         );
     }
 }

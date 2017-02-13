@@ -6,6 +6,8 @@ const drivelist = require('drivelist') // import drivelist from 'drivelist'
 import { TextView } from "./xTextView"
 import { Button } from "./xButton"
 import { FileList } from "./xFileList"
+import { LogWindow } from "./xLogWindow"
+import { LogLine } from "./xLogLine"
 import { xTag, CallScenario, ScenarioNext, handlers } from "./xScenarioManager"
 
 // http://exploringjs.com/es6/ch_modules.html
@@ -125,6 +127,7 @@ function ScenarioMakeHash(xtag) {
             if (xtag._tasklist.length > 0) {
                 var task = xtag._tasklist.shift()
                 MakeSHA_Promise(task.path).then(x => {
+                    xtag.srcObject.writeLog("MakeSHA " + task.path + " " + task.hash)
                     task.hash = x.hash
                     xtag.result.push(task)
                     xtag.Step = "MakeSHA"
@@ -244,6 +247,7 @@ function ScenarioLeftCopy(xtag) {
             xtag.filehash.forEach(x => {
                 try {
                     console.debug("copy " + x.src + " " + x.dest)
+                    xtag.srcObject.writeLog("copy " + x.src + " " + x.dest)
                     fs.copySync(x.src, x.dest)
                 } catch (err) {
                     console.log(err)
@@ -258,10 +262,10 @@ function ScenarioLeftCopy(xtag) {
             break
         case "checkHash":
             console.log("checkHash start")
-            xtag.Step = "HaskResult"
+            xtag.Step = "HashResult"
             CallScenario("CheckHash", "1", xtag)
             break
-        case "HaskResult":
+        case "HashResult":
             console.log("HaskResult")
             xtag.srcObject.eventFire("LeftCopyResult", xtag)
             break
@@ -350,6 +354,7 @@ function ScenarioLeftMove(xtag) {
                 xtag.filehash.forEach(x => {
                     try {
                         console.debug("move " + x.src + " " + x.dest)
+                        xtag.srcObject.writeLog("move " + x.src + " " + x.dest)
                         fs.unlinkSync(x.src)
                     } catch (err) {
                         console.log(err)
@@ -359,7 +364,11 @@ function ScenarioLeftMove(xtag) {
                 })
                 var p = path.join(xtag.from, xtag.select)
                 try {
-                    rmdirsSync(p)
+                    if (fs.existsSync(p)) {
+                        if (fs.lstatSync(p).isDirectory()) {
+                            rmdirsSync(p)
+                        }
+                    }
                     xtag.result = "move ok"
                 } catch (error) {
                     xtag.result = error
@@ -399,12 +408,13 @@ export class MainFrame extends React.Component {
             rightFolder: props.rightFolder,
             // leftTree: leftTree,
             // rightTree: rightTree
-            leftStatus: "",
-            rightStatus: "",
+            leftStatus: [],
+            rightStatus: [],
         }
         this.leftSelected = null
         this.rightSelected = null
         this.eventFire = this.eventFire.bind(this)
+        this.writeLog = this.writeLog.bind(this)
     }
 
     componentDidMount() {
@@ -414,13 +424,17 @@ export class MainFrame extends React.Component {
 
     }
 
+    writeLog(text) {
+        this.refs.leftLogWindow.append(text)
+    }
+
     eventFire(eventName, tag) {
         // console.log("ename:" + eventName + " , srcObject:" + tag.srcObject)
         switch (eventName) {
             case "Click":
-                if (this.state.leftStatus.length > 0) {
-                    this.setState({ "leftStatus": "" })
-                }
+                // if (this.state.leftStatus.length > 0) {
+                //     this.setState({ "leftStatus": "" })
+                // }
 
                 switch (tag.srcObject.constructor.name) {
                     case "Button":
@@ -550,14 +564,17 @@ export class MainFrame extends React.Component {
                 tag.result.forEach(x => {
                     copyresult = copyresult && x.hashcomp
                 })
-                this.setState({ "leftStatus": "LeftCopyResult:" + copyresult })
+                this.refs.leftLogWindow.append("LeftCopyResult:" + copyresult)
+                //this.setState({ "leftStatus": this.state.leftStatus.concat([<LogLine text={"LeftCopyResult:" + copyresult} />]) })
                 break
             case "LeftMoveResult":
                 if (fs.existsSync(path.join(this.state.leftFolder, tag.select)) == false) {
                     var p = path.dirname(path.join(this.state.leftFolder, tag.select))
+                    this.leftSelected = null
                     this.setState({ "leftFolder": p })
                 }
-                this.setState({ "leftStatus": "LeftMoveResult:" + tag.result })
+                this.refs.leftLogWindow.append("LeftCopyResult:" + tag.result)
+                // this.setState({ "leftStatus": "LeftMoveResult:" + tag.result })
                 break
             default:
 
@@ -568,24 +585,32 @@ export class MainFrame extends React.Component {
             <table style={{ width: "100%" }}>
                 <tbody>
                     <tr>
+                        <td style={{ width: "50%" }}><TextView text={this.state.leftFolder} /></td>
+                        <td><TextView text={this.state.rightFolder} /></td>
+                    </tr>
+                    <tr>
+                        <td style={{ width: "50%" }}>
+                            <FileList ref="leftFileList" id="leftFileList" itemSelected={this.leftSelected} root={this.state.leftFolder} eventFire={this.eventFire} />
+                        </td>
                         <td>
-                            <TextView text={this.state.leftFolder} />
-                            <FileList id="leftFileList" itemSelected={this.leftSelected} root={this.state.leftFolder} eventFire={this.eventFire} />
+                            <FileList id="rightFileList" itemSelected={this.rightSelected} root={this.state.rightFolder} eventFire={this.eventFire} />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style={{ width: "50%" }}>
                             <Button text="up" id="leftUp" eventFire={this.eventFire} />
                             <Button text="copy" id="leftCopy" eventFire={this.eventFire} />
                             <Button text="move" id="leftMove" eventFire={this.eventFire} />
                         </td>
                         <td>
-                            <TextView text={this.state.rightFolder} />
-                            <FileList id="rightFileList" itemSelected={this.rightSelected} root={this.state.rightFolder} eventFire={this.eventFire} />
                             <Button text="up" id="rightUp" eventFire={this.eventFire} />
                             {/*<Button text="copy" id="rightCopy" eventFire={this.eventFire} />
                             <Button text="move" id="rightMove" eventFire={this.eventFire} />*/}
                         </td>
                     </tr>
-                    <tr>
-                        <td><TextView text={this.state.leftStatus} /></td>
-                        <td><TextView text={this.state.rightStatus} /></td>
+                    <tr style={{ width: "50%" }}>
+                        <td><LogWindow lines={this.state.leftStatus} ref="leftLogWindow" /></td>
+                        <td><LogWindow lines={this.state.rightStatus} /></td>
                     </tr>
                 </tbody>
             </table>

@@ -1,1 +1,0 @@
-1. Double click on folder have some trouble that make opening folder difficult. Maybe browser want to select text so that double click event doesn't emit.

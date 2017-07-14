@@ -2,6 +2,7 @@ const fs = require('fs-extra')
 const path = require('path')
 const crypto = require("crypto")
 const drivelist = require('drivelist') // import drivelist from 'drivelist'
+const remote = require('electron').remote
 
 import { TextView } from "./xTextView"
 import { Button } from "./xButton"
@@ -9,6 +10,16 @@ import { FileList } from "./xFileList"
 import { LogWindow } from "./xLogWindow"
 import { LogLine } from "./xLogLine"
 import { xTag, CallScenario, ScenarioNext, handlers } from "./xScenarioManager"
+import { osWalkYield } from "./xOsWalk"
+import { Dialog } from "./xDialog"
+
+function updateLastFolder(left, right) {
+    var lastFolderPath = path.join(remote.getGlobal('sharedObj').cwd, "lastFolder.json")
+    var lastFolder = JSON.parse(fs.readFileSync(lastFolderPath, 'utf8'));
+    if (left) { lastFolder.left = left }
+    if (right) { lastFolder.right = right }
+    fs.writeFileSync(lastFolderPath, JSON.stringify(lastFolder), 'utf8')
+}
 
 // http://exploringjs.com/es6/ch_modules.html
 // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_operator
@@ -390,6 +401,10 @@ export class MainFrame extends React.Component {
         var files = fs.readdirSync(props.leftFolder)
         files.forEach(file => {
             var path_string = path.join(props.leftFolder, file)
+            if (path_string.endsWith(':\\System Volume Information')) {
+                console.log(path_string)
+                return
+            }
             var isDir = fs.lstatSync(path_string).isDirectory()
             leftTree.push({ text: file, id: Date.now(), isDir: isDir })
         })
@@ -397,6 +412,10 @@ export class MainFrame extends React.Component {
         files = fs.readdirSync(props.rightFolder)
         files.forEach(file => {
             var path_string = path.join(props.rightFolder, file)
+            if (path_string.endsWith(':\\System Volume Information')) {
+                console.log(path_string)
+                return
+            }
             var isDir = fs.lstatSync(path_string).isDirectory()
             rightTree.push({ text: file, id: Date.now(), isDir: isDir })
         })
@@ -445,6 +464,7 @@ export class MainFrame extends React.Component {
                                     this.setState({ "leftFolder": "" })
                                 } else {
                                     this.setState({ "leftFolder": p })
+                                    updateLastFolder(p, null)
                                 }
                                 break
                             case "rightUp":
@@ -453,26 +473,47 @@ export class MainFrame extends React.Component {
                                     this.setState({ "rightFolder": "" })
                                 } else {
                                     this.setState({ "rightFolder": p })
+                                    updateLastFolder(null, p)
                                 }
                                 break
                             case "leftCopy":
                                 if (this.leftSelected) {
-                                    // var p = path.join(this.leftSelected.root, this.leftSelected.text)
-                                    ScenarioNext(new xTag("LeftCopy", "1", {
-                                        "starter": this,
-                                        "from": this.state.leftFolder,
-                                        "to": this.state.rightFolder,
-                                        "select": this.leftSelected.text,
-                                        srcObject: this
-                                    }))
+                                    // ScenarioNext(new xTag("LeftCopy", "1", {
+                                    //     "starter": this,
+                                    //     "from": this.state.leftFolder,
+                                    //     "to": this.state.rightFolder,
+                                    //     "select": this.leftSelected.text,
+                                    //     srcObject: this
+                                    // }))
+                                    // this.refs.leftLogWindow.append("finding files")
+                                    var p = path.join(this.state.leftFolder, this.leftSelected.text)
+                                    this.refs.copyDialog.setPath(p, this.leftSelected.text, this.state.rightFolder)
+                                    this.refs.copyDialog.show()
+                                    this.refs.copyDialog.start()
                                 } else {
-                                    ScenarioNext(new xTag("LeftCopy", "1", {
-                                        "starter": this,
-                                        "from": this.state.leftFolder,
-                                        "to": this.state.rightFolder,
-                                        "select": "",
-                                        srcObject: this
-                                    }))
+                                    // ScenarioNext(new xTag("LeftCopy", "1", {
+                                    //     "starter": this,
+                                    //     "from": this.state.leftFolder,
+                                    //     "to": this.state.rightFolder,
+                                    //     "select": "",
+                                    //     srcObject: this
+                                    // }))
+                                    // this.refs.leftLogWindow.append("finding files")
+                                    this.refs.copyDialog.show()
+                                    this.refs.copyDialog.setPath(this.state.leftFolder, '', this.state.rightFolder)
+                                    this.refs.copyDialog.start()
+                                }
+                                break
+                            case "leftSurfaceCopy":
+                                if (this.leftSelected) {
+                                    var p = path.join(this.state.leftFolder, this.leftSelected.text)
+                                    this.refs.copyDialog.setPath(p, this.leftSelected.text, this.state.rightFolder)
+                                    this.refs.copyDialog.show()
+                                    this.refs.copyDialog.start(true)
+                                } else {
+                                    this.refs.copyDialog.setPath(this.state.leftFolder, '', this.state.rightFolder)
+                                    this.refs.copyDialog.show()
+                                    this.refs.copyDialog.start(true)
                                 }
                                 break
                             case "rightCopy":
@@ -480,26 +521,29 @@ export class MainFrame extends React.Component {
                                 break
                             case "leftMove":
                                 if (this.leftSelected) {
-                                    // var p = path.join(this.leftSelected.root, this.leftSelected.text)
-                                    ScenarioNext(new xTag("LeftMove", "1", {
-                                        "starter": this,
-                                        "from": this.state.leftFolder,
-                                        "to": this.state.rightFolder,
-                                        "select": this.leftSelected.text,
-                                        srcObject: this
-                                    }))
+                                    // ScenarioNext(new xTag("LeftMove", "1", {
+                                    //     "starter": this,
+                                    //     "from": this.state.leftFolder,
+                                    //     "to": this.state.rightFolder,
+                                    //     "select": this.leftSelected.text,
+                                    //     srcObject: this
+                                    // }))
                                 } else {
-                                    ScenarioNext(new xTag("LeftMove", "1", {
-                                        "starter": this,
-                                        "from": this.state.leftFolder,
-                                        "to": this.state.rightFolder,
-                                        "select": "",
-                                        srcObject: this
-                                    }))
+                                    // ScenarioNext(new xTag("LeftMove", "1", {
+                                    //     "starter": this,
+                                    //     "from": this.state.leftFolder,
+                                    //     "to": this.state.rightFolder,
+                                    //     "select": "",
+                                    //     srcObject: this
+                                    // }))
                                 }
                                 break
                             case "rightMove":
                                 console.log(tag.srcObject.props.id)
+                                break
+                            case "refresh":
+                                this.setState({ "leftFolder": this.state.leftFolder })
+                                this.setState({ "rightFolder": this.state.rightFolder })
                                 break
                         }
                         break
@@ -537,9 +581,11 @@ export class MainFrame extends React.Component {
                                 if (this.state.leftFolder.length == 0) {
                                     var p = path.join(tag.itemSelected.props.text, ".")
                                     this.setState({ "leftFolder": p })
+                                    updateLastFolder(p, null)
                                 } else {
                                     var p = path.join(this.state.leftFolder, tag.itemSelected.props.text)
                                     this.setState({ "leftFolder": p })
+                                    updateLastFolder(p, null)
                                 }
 
                             } else {
@@ -552,6 +598,7 @@ export class MainFrame extends React.Component {
                                     p = path.join(tag.itemSelected.props.text, ".")
                                 }
                                 this.setState({ "rightFolder": p })
+                                updateLastFolder(null, p)
                             } else {
 
                             }
@@ -572,6 +619,7 @@ export class MainFrame extends React.Component {
                     var p = path.dirname(path.join(this.state.leftFolder, tag.select))
                     this.leftSelected = null
                     this.setState({ "leftFolder": p })
+                    updateLastFolder(p, null)
                 }
                 this.refs.leftLogWindow.append("LeftCopyResult:" + tag.result)
                 // this.setState({ "leftStatus": "LeftMoveResult:" + tag.result })
@@ -601,15 +649,17 @@ export class MainFrame extends React.Component {
                             <Button text="up" id="leftUp" eventFire={this.eventFire} />
                             <Button text="copy" id="leftCopy" eventFire={this.eventFire} />
                             <Button text="move" id="leftMove" eventFire={this.eventFire} />
+                            <Button text="surfaceCopy" id="leftSurfaceCopy" eventFire={this.eventFire} />
                         </td>
                         <td>
                             <Button text="up" id="rightUp" eventFire={this.eventFire} />
+                            <Button text="refresh" id="refresh" eventFire={this.eventFire} />
                             {/*<Button text="copy" id="rightCopy" eventFire={this.eventFire} />
                             <Button text="move" id="rightMove" eventFire={this.eventFire} />*/}
                         </td>
                     </tr>
                     <tr>
-                        <td colSpan="2"><LogWindow lines={this.state.leftStatus} ref="leftLogWindow" /></td>
+                        <td colSpan="2"><LogWindow lines={this.state.leftStatus} ref="leftLogWindow" /><Dialog ref="copyDialog" /></td>
                         <td></td>
                     </tr>
                     {/*

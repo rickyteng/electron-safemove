@@ -5,13 +5,47 @@
   <meta charset="UTF-8">
   <title>Safe Copy and Move</title>
   <style>
-        .selected {color:coral}
-        /*.folder {font-weight: bold;}*/
-        .folder {font-size:larger;font-weight: bold;}
-        .logline{padding:5px}
-        .logwindow{max-Height: 160px; overflow: auto }
-        .filelist{max-Height: 400px; overflow: auto }
-    </style>
+    .selected {
+      color: coral
+    }
+    /*.folder {font-weight: bold;}*/
+    
+    .folder {
+      font-size: larger;
+      font-weight: bold;
+    }
+    
+    .logline {
+      padding: 5px
+    }
+    
+    .logwindow {
+      max-Height: 160px;
+      overflow: auto
+    }
+    
+    .filelist {
+      max-Height: 400px;
+      overflow: auto
+    }
+    
+    .dialog {
+      background-color: #eef3f5;
+      position: absolute;
+      left: 100px;
+      top: 100px;
+      border-radius: 5px;
+      border: 1px solid;
+      min-width: 100px;
+      max-width: 600px;
+      min-height: 100px;
+      max-height: 600px;
+    }
+    
+    .hideme {
+      visibility: hidden
+    }
+  </style>
 </head>
 
 <body>
@@ -26,6 +60,7 @@
 <script>
   // You can also require other files to run in this process
   require('./renderer.js')
+
 </script>
 
 </html>

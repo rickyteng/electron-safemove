@@ -12,6 +12,7 @@ import { LogLine } from "./xLogLine"
 import { xTag, CallScenario, ScenarioNext, handlers } from "./xScenarioManager"
 import { osWalkYield } from "./xOsWalk"
 import { Dialog } from "./xDialog"
+import { DialogSeq } from "./xDialogSeq"
 
 function updateLastFolder(left, right) {
     var lastFolderPath = path.join(remote.getGlobal('sharedObj').cwd, "lastFolder.json")
@@ -116,7 +117,7 @@ function rmdirsSync(folderpath) {
 
 Object.assign(handlers, {
     "CheckHash": ScenarioCheckHash,
-    "LeftCopy": ScenarioLeftCopy,
+    //"LeftCopy": ScenarioLeftCopy,
     "MakeSHA": ScenarioMakeHash,
     "LeftMove": ScenarioLeftMove,
 })
@@ -268,8 +269,9 @@ function ScenarioLeftCopy(xtag) {
 
             })
             console.log("executeCopy end")
-            xtag.Step = "checkHash"
-            ScenarioNext(xtag)
+            // xtag.Step = "checkHash"
+            // ScenarioNext(xtag)
+             xtag.srcObject.eventFire("LeftCopyResult", xtag)
             break
         case "checkHash":
             console.log("checkHash start")
@@ -487,9 +489,9 @@ export class MainFrame extends React.Component {
                                     // }))
                                     // this.refs.leftLogWindow.append("finding files")
                                     var p = path.join(this.state.leftFolder, this.leftSelected.text)
-                                    this.refs.copyDialog.setPath(p, this.leftSelected.text, this.state.rightFolder)
-                                    this.refs.copyDialog.show()
-                                    this.refs.copyDialog.start()
+                                    this.refs.copyDialogSeq.setPath(p, this.leftSelected.text, this.state.rightFolder)
+                                    this.refs.copyDialogSeq.show()
+                                    this.refs.copyDialogSeq.start()
                                 } else {
                                     // ScenarioNext(new xTag("LeftCopy", "1", {
                                     //     "starter": this,
@@ -499,9 +501,9 @@ export class MainFrame extends React.Component {
                                     //     srcObject: this
                                     // }))
                                     // this.refs.leftLogWindow.append("finding files")
-                                    this.refs.copyDialog.show()
-                                    this.refs.copyDialog.setPath(this.state.leftFolder, '', this.state.rightFolder)
-                                    this.refs.copyDialog.start()
+                                    this.refs.copyDialogSeq.show()
+                                    this.refs.copyDialogSeq.setPath(this.state.leftFolder, '', this.state.rightFolder)
+                                    this.refs.copyDialogSeq.start()
                                 }
                                 break
                             case "leftSurfaceCopy":
@@ -659,7 +661,10 @@ export class MainFrame extends React.Component {
                         </td>
                     </tr>
                     <tr>
-                        <td colSpan="2"><LogWindow lines={this.state.leftStatus} ref="leftLogWindow" /><Dialog ref="copyDialog" /></td>
+                        <td colSpan="2"><LogWindow lines={this.state.leftStatus} ref="leftLogWindow" />
+                            <Dialog ref="copyDialog" />
+                            <DialogSeq ref="copyDialogSeq" />
+                        </td>
                         <td></td>
                     </tr>
                     {/*

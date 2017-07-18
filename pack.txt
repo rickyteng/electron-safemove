@@ -1,0 +1,4 @@
+1. unzip electron-v1.4.15-win32-x64.zip to exectron
+2. move electron to app/
+3. make shoutcut of app/electron/electron.exe
+3.1. change target value, append app. like app/electron/electron.exe app

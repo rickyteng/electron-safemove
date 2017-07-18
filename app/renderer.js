@@ -57,7 +57,7 @@
 	// This file is required by the index.html file and will
 	// be executed in the renderer process for that window.
 	// All of the Node.js APIs are available in this process.
-	var remote = __webpack_require__(234).remote;
+	var remote = __webpack_require__(235).remote;
 	var fs = __webpack_require__(117);
 	var path = __webpack_require__(130);
 	
@@ -169,13 +169,15 @@
 	
 	var _xDialog = __webpack_require__(230);
 	
+	var _xDialogSeq = __webpack_require__(234);
+	
 	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 	
 	var fs = __webpack_require__(117);
 	var path = __webpack_require__(130);
 	var crypto = __webpack_require__(233);
 	var drivelist = __webpack_require__(177); // import drivelist from 'drivelist'
-	var remote = __webpack_require__(234).remote;
+	var remote = __webpack_require__(235).remote;
 	
 	function updateLastFolder(left, right) {
 	    var lastFolderPath = path.join(remote.getGlobal('sharedObj').cwd, "lastFolder.json");
@@ -284,7 +286,7 @@
 	
 	(0, _assign2.default)(_xScenarioManager.handlers, {
 	    "CheckHash": ScenarioCheckHash,
-	    "LeftCopy": ScenarioLeftCopy,
+	    //"LeftCopy": ScenarioLeftCopy,
 	    "MakeSHA": ScenarioMakeHash,
 	    "LeftMove": ScenarioLeftMove
 	});
@@ -435,8 +437,9 @@
 	                }
 	            });
 	            console.log("executeCopy end");
-	            xtag.Step = "checkHash";
-	            (0, _xScenarioManager.ScenarioNext)(xtag);
+	            // xtag.Step = "checkHash"
+	            // ScenarioNext(xtag)
+	            xtag.srcObject.eventFire("LeftCopyResult", xtag);
 	            break;
 	        case "checkHash":
 	            console.log("checkHash start");
@@ -660,9 +663,9 @@
 	                                        // }))
 	                                        // this.refs.leftLogWindow.append("finding files")
 	                                        var p = path.join(this.state.leftFolder, this.leftSelected.text);
-	                                        this.refs.copyDialog.setPath(p, this.leftSelected.text, this.state.rightFolder);
-	                                        this.refs.copyDialog.show();
-	                                        this.refs.copyDialog.start();
+	                                        this.refs.copyDialogSeq.setPath(p, this.leftSelected.text, this.state.rightFolder);
+	                                        this.refs.copyDialogSeq.show();
+	                                        this.refs.copyDialogSeq.start();
 	                                    } else {
 	                                        // ScenarioNext(new xTag("LeftCopy", "1", {
 	                                        //     "starter": this,
@@ -672,9 +675,9 @@
 	                                        //     srcObject: this
 	                                        // }))
 	                                        // this.refs.leftLogWindow.append("finding files")
-	                                        this.refs.copyDialog.show();
-	                                        this.refs.copyDialog.setPath(this.state.leftFolder, '', this.state.rightFolder);
-	                                        this.refs.copyDialog.start();
+	                                        this.refs.copyDialogSeq.show();
+	                                        this.refs.copyDialogSeq.setPath(this.state.leftFolder, '', this.state.rightFolder);
+	                                        this.refs.copyDialogSeq.start();
 	                                    }
 	                                    break;
 	                                case "leftSurfaceCopy":
@@ -858,7 +861,8 @@
 	                            'td',
 	                            { colSpan: '2' },
 	                            React.createElement(_xLogWindow.LogWindow, { lines: this.state.leftStatus, ref: 'leftLogWindow' }),
-	                            React.createElement(_xDialog.Dialog, { ref: 'copyDialog' })
+	                            React.createElement(_xDialog.Dialog, { ref: 'copyDialog' }),
+	                            React.createElement(_xDialogSeq.DialogSeq, { ref: 'copyDialogSeq' })
 	                        ),
 	                        React.createElement('td', null)
 	                    )
@@ -39707,6 +39711,474 @@
 
 /***/ },
 /* 234 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	
+	Object.defineProperty(exports, "__esModule", {
+	    value: true
+	});
+	exports.DialogSeq = undefined;
+	
+	var _getPrototypeOf = __webpack_require__(5);
+	
+	var _getPrototypeOf2 = _interopRequireDefault(_getPrototypeOf);
+	
+	var _classCallCheck2 = __webpack_require__(30);
+	
+	var _classCallCheck3 = _interopRequireDefault(_classCallCheck2);
+	
+	var _createClass2 = __webpack_require__(31);
+	
+	var _createClass3 = _interopRequireDefault(_createClass2);
+	
+	var _possibleConstructorReturn2 = __webpack_require__(35);
+	
+	var _possibleConstructorReturn3 = _interopRequireDefault(_possibleConstructorReturn2);
+	
+	var _inherits2 = __webpack_require__(82);
+	
+	var _inherits3 = _interopRequireDefault(_inherits2);
+	
+	var _xTextView = __webpack_require__(110);
+	
+	var _xOsWalk = __webpack_require__(226);
+	
+	var _xOswalkProgress = __webpack_require__(231);
+	
+	var _xMapProgress = __webpack_require__(232);
+	
+	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+	
+	var fs = __webpack_require__(117);
+	var path = __webpack_require__(130);
+	var crypto = __webpack_require__(233);
+	
+	function MakeSHA(filepath, callback) {
+	    // http://stackoverflow.com/questions/18658612/obtaining-the-hash-of-a-file-using-the-stream-capabilities-of-crypto-module-ie
+	
+	    process.noAsar = true; // fix read .asar as file //https://github.com/electron/electron/blob/master/docs/tutorial/application-packaging.md
+	    // https://www.bountysource.com/issues/39961418-rm-rf-doesn-t-work-if-the-directory-contains-an-asar-archive-in-electron
+	
+	    var fd = fs.createReadStream(filepath);
+	    var hash = crypto.createHash("sha1");
+	    hash.setEncoding("hex");
+	    fd.on('end', function () {
+	        hash.end();
+	        if (callback) {
+	            callback(filepath, hash.read());
+	        }
+	    });
+	    fd.pipe(hash);
+	}
+	
+	function Copy(args, callback) {
+	    if (args[0].indexOf('electron\.asar') > -1) {
+	        console.log('electron\.asar');
+	    }
+	    process.noAsar = true;
+	    var options = { 'preserveTimestamps': true };
+	    var file_stat = fs.statSync(args[0]);
+	    var old_mode = file_stat.mode;
+	    if ((file_stat.mode & 146) == 0) {
+	        file_stat.mode = file_stat.mode | 146;
+	        fs.chmodSync(args[0], file_stat.mode);
+	    }
+	    fs.copy(args[0], args[1], options, function (err) {
+	        console.log('copy:' + args[0]);
+	        if (callback) {
+	            if (err) {
+	                // throw err
+	                callback(err, args[0], args[1]);
+	            } else {
+	                callback(err, args[0], args[1]);
+	            }
+	        } else {
+	            if (err) {
+	                throw err;
+	            }
+	        }
+	        fs.chmodSync(args[0], old_mode);
+	        fs.chmodSync(args[1], old_mode);
+	    });
+	}
+	
+	function listloop(alist, func, progresscb, finalcb) {
+	    function aloop(i) {
+	        var args = alist[i];
+	        func(args, function () {
+	            for (var _len = arguments.length, result = Array(_len), _key = 0; _key < _len; _key++) {
+	                result[_key] = arguments[_key];
+	            }
+	
+	            if (progresscb !== undefined) {
+	                progresscb.apply(undefined, result.concat([i]));
+	            }
+	            i++;
+	            if (i < alist.length) {
+	                aloop(i);
+	            } else {
+	                if (finalcb !== undefined) {
+	                    finalcb(alist.length);
+	                }
+	            }
+	        });
+	    }
+	    if (alist.length > 0) {
+	        aloop(0);
+	    } else {
+	        finalcb(alist.length);
+	    }
+	}
+	
+	var DialogSeq = exports.DialogSeq = function (_React$Component) {
+	    (0, _inherits3.default)(DialogSeq, _React$Component);
+	
+	    function DialogSeq(props) {
+	        (0, _classCallCheck3.default)(this, DialogSeq);
+	
+	        var _this = (0, _possibleConstructorReturn3.default)(this, (DialogSeq.__proto__ || (0, _getPrototypeOf2.default)(DialogSeq)).call(this, props));
+	
+	        _this.state = {
+	            hide: true,
+	            srcPath: '',
+	            tarPath: '',
+	            selected: '',
+	            srcFiles: [],
+	            tmpFiles: [],
+	            tarFiles: [],
+	            shaDict: {},
+	            failFiles: [],
+	            filelistCaption: 'File List'
+	        };
+	        _this.handleDoubleClick = _this.handleDoubleClick.bind(_this);
+	        _this.handleClick = _this.handleClick.bind(_this);
+	        _this.handleClose = _this.handleClose.bind(_this);
+	
+	        _this.start = _this.start.bind(_this);
+	        _this.shaSrc = _this.shaSrc.bind(_this);
+	        _this.makeDestPath = _this.makeDestPath.bind(_this);
+	        _this.copy = _this.copy.bind(_this);
+	        _this.shaTar = _this.shaTar.bind(_this);
+	        _this.check = _this.check.bind(_this);
+	        return _this;
+	    }
+	
+	    (0, _createClass3.default)(DialogSeq, [{
+	        key: "handleDoubleClick",
+	        value: function handleDoubleClick(e) {
+	            e.preventDefault();
+	            // console.log('Button: The link was clicked.');
+	            this.props.eventFire("DoubleClick", { srcObject: this });
+	        }
+	    }, {
+	        key: "handleClick",
+	        value: function handleClick(e) {
+	            e.preventDefault();
+	            // console.log('Button: The link was clicked.');
+	            this.props.eventFire("Click", { srcObject: this });
+	        }
+	    }, {
+	        key: "componentDidMount",
+	        value: function componentDidMount() {}
+	    }, {
+	        key: "componentWillUnmount",
+	        value: function componentWillUnmount() {}
+	    }, {
+	        key: "show",
+	        value: function show() {
+	            this.setState({ "hide": false });
+	        }
+	    }, {
+	        key: "hide",
+	        value: function hide() {
+	            this.setState({ "hide": true });
+	        }
+	    }, {
+	        key: "setPath",
+	        value: function setPath(srcPath, selected, tarPath) {
+	            this.setState({ "srcPath": srcPath, 'selected': selected, "tarPath": tarPath });
+	            this.state.srcPath = srcPath;
+	            this.state.tarPath = tarPath;
+	            this.state.selected = selected;
+	        }
+	    }, {
+	        key: "start",
+	        value: function start(surface) {
+	            var _this2 = this;
+	
+	            // console.log("start")
+	            this.setState({ 'filelistCaption': 'File List Search...' });
+	            this.state.failFiles = [];
+	            if (surface) {
+	                var root = this.state.srcPath;
+	                var files = [];
+	                fs.readdir(root, function (err, _files) {
+	                    if (err) {
+	                        throw err;
+	                    }
+	                    for (var i in _files) {
+	                        var path_string = path.join(root, _files[i]);
+	                        var isDir = fs.lstatSync(path_string).isDirectory();
+	                        // fix .asar as folder
+	                        var isAsar = path_string.toLowerCase().endsWith('.asar') ? true : false;
+	                        if (isAsar) {
+	                            files.push(path_string);
+	                        } else {
+	                            if (isDir) {
+	                                // pass
+	                            } else {
+	                                files.push(path_string);
+	                            }
+	                        }
+	                    }
+	
+	                    _this2.setState({ 'filelistCaption': 'File List search complete' });
+	                    _this2.state.srcFiles = files.slice();
+	
+	                    console.log('setState srcFiles complete');
+	                    _this2.setState({ 'filelistCaption': 'File List Completed. Total:' + _this2.state.srcFiles.length });
+	
+	                    //this.shaSrc()
+	                    _this2.copy();
+	                });
+	            } else {
+	                var xx = new _xOswalkProgress.oswalkProgress();
+	
+	                xx.dirInfo(this.state.srcPath, function (x) {
+	                    _this2.setState({ 'filelistCaption': 'File List search complete' });
+	                    _this2.state.srcFiles = x.slice();
+	
+	                    console.log('setState srcFiles complete');
+	                    _this2.setState({ 'filelistCaption': 'File List Completed. Total:' + _this2.state.srcFiles.length });
+	
+	                    // this.shaSrc()
+	                    _this2.copy();
+	                }, function () {
+	                    _this2.setState({ 'filelistCaption': 'File List Searching... Count:' + (arguments.length <= 0 ? undefined : arguments[0]) + '  looking ' + (arguments.length <= 1 ? undefined : arguments[1]) });
+	                });
+	            }
+	        }
+	    }, {
+	        key: "shaSrc",
+	        value: function shaSrc() {
+	            var _this3 = this;
+	
+	            this.setState({ 'filelistCaption': 'File List source SHA... ' });
+	            this.state.shaDict = {};
+	            var xx = new _xMapProgress.mapProgress(this.state.srcFiles, MakeSHA, function (result) {
+	                result.map(function (x) {
+	                    _this3.state.shaDict[x[0].slice(_this3.state.srcPath.length)] = { 'src': x[1], 'tar': '', "result": false };
+	                    // console.log(x)
+	                });
+	                _this3.setState({ 'filelistCaption': 'File List source SHA. Total:' + result.length });
+	
+	                _this3.copy();
+	            }, function (count) {
+	                _this3.setState({ 'filelistCaption': 'File List source SHA. count:' + count + '/' + _this3.state.srcFiles.length });
+	                // console.log('File List source SHA. count:' + count)
+	            });
+	            xx.go();
+	        }
+	    }, {
+	        key: "copy",
+	        value: function copy() {
+	            var _this4 = this;
+	
+	            this.setState({ 'filelistCaption': 'File List Copy... ' });
+	            this.state.tmpFiles = this.state.srcFiles.map(function (x) {
+	                return [x, _this4.makeDestPath(x)];
+	            });
+	            this.state.srcFiles = [];
+	
+	            var copyresult = true;
+	            listloop(this.state.tmpFiles, Copy, function () {
+	                for (var _len2 = arguments.length, r = Array(_len2), _key2 = 0; _key2 < _len2; _key2++) {
+	                    r[_key2] = arguments[_key2];
+	                }
+	
+	                if (r[0]) {
+	                    copyresult = false;
+	                    var srcf = _this4.state.tmpFiles[r[r.length - 1]][0];
+	                    var tarf = _this4.state.tmpFiles[r[r.length - 1]][1];
+	                    _this4.state.failFiles.push('src:' + srcf + ' ** reason:' + r[0][0].message + ' ** ' + tarf);
+	                }
+	                _this4.setState({ 'filelistCaption': 'File List Copy Count: ' + r[r.length - 1] + '/' + _this4.state.tmpFiles.length + ' file:' + r[1] });
+	            }, function (x) {
+	                _this4.setState({ 'filelistCaption': 'File List Copy: ' + x + ', result:' + copyresult });
+	            });
+	            // var xx = new mapProgress(this.state.tmpFiles,
+	            //     Copy,
+	            //     (result) => {
+	            //         this.setState({ 'filelistCaption': 'File List Copy Completed ' })
+	
+	            //         var mapindex = 0
+	            //         var copyresult = true
+	            //         var failList = []
+	            //         result.map((x) => {
+	            //             if (x[0]) {
+	            //                 copyresult = false
+	            //                 var srcf = this.state.tmpFiles[mapindex][0]
+	            //                 var tarf = this.state.tmpFiles[mapindex][1]
+	            //                 failList.push('src:' + srcf + ' ** reason:' + x[0][0].message + ' ** ' + tarf)
+	            //             } else {
+	            //                 // console.log('no error')
+	            //             }
+	            //             mapindex += 1
+	            //         })
+	            //         this.state.failFiles = failList.slice()
+	            //         this.setState({ 'filelistCaption': 'File List result:' + copyresult })
+	            //     },
+	            //     (count) => {
+	            //         this.setState({ 'filelistCaption': 'File List Copy Count: ' + count + '/' + this.state.tmpFiles.length })
+	            //     }
+	            // )
+	            // xx.go()
+	        }
+	    }, {
+	        key: "shaTar",
+	        value: function shaTar() {
+	            var _this5 = this;
+	
+	            this.setState({ 'filelistCaption': 'File List target SHA start ' });
+	            this.state.tarFiles = this.state.tmpFiles.map(function (x) {
+	                return x[1];
+	            });
+	            this.state.tmpFiles = [];
+	            var xx = new _xMapProgress.mapProgress(this.state.tarFiles, MakeSHA, function (result) {
+	                _this5.setState({ 'filelistCaption': 'File List target SHA Completed ' });
+	
+	                result.map(function (x) {
+	                    // console.log(x)
+	                    var k = x[0].slice(path.join(_this5.state.selected, _this5.state.tarPath).length);
+	                    if (k in _this5.state.shaDict) {
+	                        _this5.state.shaDict[k]['tar'] = x[1];
+	                    } else {
+	                        _this5.state.shaDict[k] = { 'src': '', 'tar': x[1], 'result': false };
+	                    }
+	                });
+	
+	                _this5.check();
+	            }, function (count) {
+	                _this5.setState({ 'filelistCaption': 'File List target SHA. count:' + count + '/' + _this5.state.tarFiles.length });
+	            });
+	
+	            xx.go();
+	        }
+	    }, {
+	        key: "check",
+	        value: function check() {
+	            var result = true;
+	            var failList = [];
+	            for (var x in this.state.shaDict) {
+	                if (this.state.shaDict[x]['tar'] == this.state.shaDict[x]['src']) {
+	                    if (this.state.shaDict[x]['tar'].length > 0) {
+	                        this.state.shaDict[x]['result'] = true;
+	                    } else {
+	                        result = false;
+	                        failList.push({ 'src': path.join(this.state.srcPath, this.state.selected, x), 'reason': 'copy failed' });
+	                    }
+	                } else {
+	                    result = false;
+	                    failList.push({ 'src': path.join(this.state.srcPath, this.state.selected, x), 'reason': 'sha diff' });
+	                }
+	            }
+	            this.state.failFiles = failList.slice();
+	            this.setState({ 'filelistCaption': 'File List result:' + result });
+	        }
+	
+	        /**
+	         * 
+	         * @param {string} src 
+	         * @param {string} tar 
+	         * @param {string} srcFullPath 
+	         */
+	
+	    }, {
+	        key: "makeDestPath",
+	        value: function makeDestPath(srcFullPath) {
+	            var src = this.state.srcPath;
+	            var tar = this.state.tarPath;
+	            var selected = this.state.selected;
+	            var relSrcPath = srcFullPath.slice(src.length);
+	            var tarFullPath = path.join(tar, selected, relSrcPath);
+	            return tarFullPath;
+	        }
+	    }, {
+	        key: "handleClose",
+	        value: function handleClose(e) {
+	            e.preventDefault();
+	            // console.log('Button: The link was clicked.');
+	            this.setState({ 'filelistCaption': 'File List' });
+	            this.hide();
+	        }
+	    }, {
+	        key: "render",
+	        value: function render() {
+	            var tree = [];
+	            if (this.state.srcFiles.length < 10) {
+	                for (var index = 0; index < this.state.srcFiles.length; index++) {
+	                    var element = this.state.srcFiles[index];
+	                    tree.push(React.createElement(_xTextView.TextView, { key: index, text: element }));
+	                }
+	            }
+	
+	            var tree2 = [];
+	            for (var index = 0; index < this.state.failFiles.length; index++) {
+	                var element = this.state.failFiles[index];
+	                tree2.push(React.createElement(_xTextView.TextView, { key: index, text: element }));
+	            }
+	
+	            if (this.state.hide || this.state.hide == undefined) {
+	                return React.createElement("div", { className: "dialog hideme" });
+	            } else {
+	                return React.createElement(
+	                    "div",
+	                    { className: "dialog" },
+	                    React.createElement(
+	                        "div",
+	                        null,
+	                        "from: ",
+	                        this.state.srcPath
+	                    ),
+	                    React.createElement("hr", null),
+	                    React.createElement(
+	                        "div",
+	                        null,
+	                        "-to-: ",
+	                        this.state.tarPath
+	                    ),
+	                    React.createElement("hr", null),
+	                    React.createElement(
+	                        "div",
+	                        null,
+	                        React.createElement(_xTextView.TextView, { text: this.state.filelistCaption })
+	                    ),
+	                    React.createElement("hr", null),
+	                    React.createElement(
+	                        "div",
+	                        { className: "filelist" },
+	                        tree
+	                    ),
+	                    React.createElement(
+	                        "div",
+	                        { className: "filelist" },
+	                        tree2
+	                    ),
+	                    React.createElement(
+	                        "button",
+	                        { onClick: this.handleClose },
+	                        "Close"
+	                    )
+	                );
+	            }
+	        }
+	    }]);
+	    return DialogSeq;
+	}(React.Component);
+
+/***/ },
+/* 235 */
 /***/ function(module, exports) {
 
 	module.exports = require("electron");
